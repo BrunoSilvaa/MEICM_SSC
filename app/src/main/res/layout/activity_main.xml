@@ -51,6 +51,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="164dp"
+        app:backgroundTint="@null"
         android:background="@drawable/button_background"
         android:paddingLeft="50px"
         android:paddingTop="25px"

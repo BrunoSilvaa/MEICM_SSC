@@ -6,6 +6,17 @@
     android:layout_height="match_parent"
     tools:context=".ScannerActivity">
 
+
+
+    <FrameLayout
+        android:id="@+id/camera_preview"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@+id/bottom_navigation"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <TextView
         android:id="@+id/tvScanTitle"
         android:layout_width="wrap_content"
@@ -18,37 +29,29 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <TextView
-        android:id="@+id/tvScanSubtitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Place your graph inside the frame to scan please\nAvoid shake to get an optimal result"
-        android:textSize="16sp"
-        android:textColor="@android:color/darker_gray"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvScanTitle" />
 
     <ImageView
         android:id="@+id/ivScannerFrame"
-        android:layout_width="384dp"
-        android:layout_height="431dp"
+        android:layout_width="465dp"
+        android:layout_height="486dp"
         android:layout_marginTop="16dp"
         android:background="@mipmap/ic_scan"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvScanSubtitle" />
+        app:layout_constraintTop_toBottomOf="@id/tvScanTitle" />
 
     <Button
         android:id="@+id/btnScanGraph"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="32dp"
         android:background="@drawable/button_background"
+        android:backgroundTint="@color/purple_700"
         android:text="Scan Graph"
         android:textColor="@android:color/white"
+        app:backgroundTint="@null"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/ivScannerFrame" />
 
