@@ -5,5 +5,5 @@
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
     </style>
 
-    <style name="Theme.Ssc_project" parent="Base.Theme.Ssc_project" />
+    <!-- <style name="Theme.Ssc_project" parent="Base.Theme.Ssc_project" /> -->
 </resources>
