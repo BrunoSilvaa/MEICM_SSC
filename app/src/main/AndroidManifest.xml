@@ -28,5 +28,6 @@
             </intent-filter>
         </activity>
         <activity android:name=".ScannerActivity"></activity>
+        <activity android:name=".ScanHistoryActivity"></activity>
     </application>
 </manifest>

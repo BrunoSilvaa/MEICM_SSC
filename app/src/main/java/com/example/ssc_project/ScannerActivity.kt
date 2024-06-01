@@ -1,6 +1,7 @@
 package com.example.ssc_project
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -31,26 +32,11 @@ class ScannerActivity : AppCompatActivity() {
         setContentView(R.layout.activity_scanner)
 
         val bottomNavigationView: BottomNavigationView = findViewById(R.id.bottom_navigation)
+        NavigationUtil.setupBottomNavigation(this, bottomNavigationView)
         val preview: FrameLayout = findViewById(R.id.camera_preview)
         val btnScanGraph: Button = findViewById(R.id.btnScanGraph)
 
-        bottomNavigationView.setOnNavigationItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.navigation_history -> {
-                    // Handle history navigation
-                    true
-                }
-                R.id.navigation_scan -> {
-                    // Current screen, do nothing
-                    true
-                }
-                R.id.navigation_settings -> {
-                    // Handle settings navigation
-                    true
-                }
-                else -> false
-            }
-        }
+
 
         btnScanGraph.setOnClickListener {
             // Capture the image with auto-focus
@@ -61,6 +47,7 @@ class ScannerActivity : AppCompatActivity() {
 
         // Check permissions and initialize the camera preview
         checkAndRequestPermissions()
+
     }
 
     private fun checkAndRequestPermissions() {
@@ -125,6 +112,9 @@ class ScannerActivity : AppCompatActivity() {
         val rotatedBitmap = rotateBitmap(bitmap, 90f)
 
         saveImageToExternalStorage(rotatedBitmap)
+        // Navigate to ScanHistoryActivity
+        val intent = Intent(this, ScanHistoryActivity::class.java)
+        startActivity(intent)
     }
 
     private fun rotateBitmap(source: Bitmap, angle: Float): Bitmap {
@@ -180,6 +170,8 @@ class ScannerActivity : AppCompatActivity() {
             }
         }
     }
+
+
 
     companion object {
         const val REQUEST_PERMISSIONS = 1
