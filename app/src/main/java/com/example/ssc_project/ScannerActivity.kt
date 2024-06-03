@@ -1,15 +1,19 @@
 package com.example.ssc_project
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.hardware.Camera
+import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageButton
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -18,14 +22,15 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.InputStream
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.*
 
 class ScannerActivity : AppCompatActivity() {
 
     private var cameraPreview: CameraPreview? = null
     private var mCamera: Camera? = null
+    private val REQUEST_IMAGE_PICK = 1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,7 +41,11 @@ class ScannerActivity : AppCompatActivity() {
         val preview: FrameLayout = findViewById(R.id.camera_preview)
         val btnScanGraph: Button = findViewById(R.id.btnScanGraph)
 
-
+        // Initialize the select image button
+        val selectImageButton: ImageButton = findViewById(R.id.button_select_image)
+        selectImageButton.setOnClickListener {
+            openImagePicker()
+        }
 
         btnScanGraph.setOnClickListener {
             // Capture the image with auto-focus
@@ -47,7 +56,6 @@ class ScannerActivity : AppCompatActivity() {
 
         // Check permissions and initialize the camera preview
         checkAndRequestPermissions()
-
     }
 
     private fun checkAndRequestPermissions() {
@@ -94,15 +102,12 @@ class ScannerActivity : AppCompatActivity() {
 
         val result = if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
             (info.orientation + degrees) % 360
-            //(360 - result) % 360 // compensate the mirror
         } else { // back-facing
             (info.orientation - degrees + 360) % 360
         }
 
         mCamera?.setDisplayOrientation(result)
     }
-
-
 
     private val pictureCallback = Camera.PictureCallback { data, _ ->
         // Handle the captured image data
@@ -171,7 +176,37 @@ class ScannerActivity : AppCompatActivity() {
         }
     }
 
+    private fun openImagePicker() {
+        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+        intent.type = "image/*"
+        startActivityForResult(intent, REQUEST_IMAGE_PICK)
+    }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_IMAGE_PICK && resultCode == Activity.RESULT_OK) {
+            val selectedImageUri = data?.data
+            if (selectedImageUri != null) {
+                val bitmap = getBitmapFromUri(selectedImageUri)
+                if (bitmap != null) {
+                    saveImageToExternalStorage(bitmap)
+                    // Navigate to ScanHistoryActivity
+                    val intent = Intent(this, ScanHistoryActivity::class.java)
+                    startActivity(intent)
+                }
+            }
+        }
+    }
+
+    private fun getBitmapFromUri(uri: Uri): Bitmap? {
+        return try {
+            val inputStream: InputStream? = contentResolver.openInputStream(uri)
+            BitmapFactory.decodeStream(inputStream)
+        } catch (e: IOException) {
+            e.printStackTrace()
+            null
+        }
+    }
 
     companion object {
         const val REQUEST_PERMISSIONS = 1

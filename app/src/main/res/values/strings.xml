@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ssc_project</string>
+    <string name="app_name">Graph Analyser</string>
     <string name="action_settings">Settings</string>
     <!-- Strings used for fragments for navigation -->
     <string name="first_fragment_label">First Fragment</string>
