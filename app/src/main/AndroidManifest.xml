@@ -31,5 +31,6 @@
         </activity>
         <activity android:name=".ScannerActivity"></activity>
         <activity android:name=".ScanHistoryActivity"></activity>
+        <activity android:name=".DisplayImageActivity"></activity>
     </application>
 </manifest>

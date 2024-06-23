@@ -10,7 +10,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import java.io.File
 
-class ScanHistoryActivity : AppCompatActivity() {
+class ScanHistoryActivity : AppCompatActivity(), ScanHistoryAdapter.OnItemClickListener {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: ScanHistoryAdapter
@@ -28,7 +28,7 @@ class ScanHistoryActivity : AppCompatActivity() {
         // Load saved images
         loadSavedImages()
 
-        adapter = ScanHistoryAdapter(this, scanList)
+        adapter = ScanHistoryAdapter(this, scanList, this)
         recyclerView.adapter = adapter
 
         swipeRefreshLayout.setOnRefreshListener {
@@ -37,6 +37,14 @@ class ScanHistoryActivity : AppCompatActivity() {
 
         val bottomNavigationView: BottomNavigationView = findViewById(R.id.bottom_navigation)
         NavigationUtil.setupBottomNavigation(this, bottomNavigationView)
+    }
+
+    override fun onItemClick(scanItem: ScanItem) {
+        // Handle item click here
+        // For example, launch an activity to display the image
+        val intent = Intent(this, DisplayImageActivity::class.java)
+        intent.putExtra("imagePath", scanItem.filePath)
+        startActivity(intent)
     }
 
     private fun loadSavedImages() {

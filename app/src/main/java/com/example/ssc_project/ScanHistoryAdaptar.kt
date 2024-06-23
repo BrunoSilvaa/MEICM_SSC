@@ -14,7 +14,7 @@ import java.io.File
 data class ScanItem(val title: String, val description: String, val filePath: String)
 
 
-class ScanHistoryAdapter(private val context: Context, private val scanList: List<ScanItem>) :
+class ScanHistoryAdapter(private val context: Context, private val scanList: List<ScanItem>, private val itemClickListener: OnItemClickListener) :
     RecyclerView.Adapter<ScanHistoryAdapter.ScanViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ScanViewHolder {
@@ -31,6 +31,11 @@ class ScanHistoryAdapter(private val context: Context, private val scanList: Lis
         val bitmap = BitmapFactory.decodeFile(scanItem.filePath)
         holder.iconImageView.setImageBitmap(bitmap)
 
+        holder.itemView.setOnClickListener {
+            itemClickListener.onItemClick(scanItem)
+        }
+
+
         holder.downloadImageView.setOnClickListener {
             // Handle download action
             Toast.makeText(context, "Download ${scanItem.title}", Toast.LENGTH_SHORT).show()
@@ -43,6 +48,10 @@ class ScanHistoryAdapter(private val context: Context, private val scanList: Lis
                 Toast.makeText(context, "Deleted ${scanItem.title}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    interface OnItemClickListener {
+        fun onItemClick(scanItem: ScanItem)
     }
 
     override fun getItemCount() = scanList.size
