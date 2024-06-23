@@ -1,5 +1,10 @@
+import android.graphics.Bitmap
+import okhttp3.MultipartBody
 import retrofit2.Call
 import retrofit2.http.GET
+import retrofit2.http.Multipart
+import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Query
 
 data class BboxResponse(
@@ -8,8 +13,9 @@ data class BboxResponse(
 )
 
 interface LocalApiService {
-    @GET("/classify")
+    @Multipart
+    @POST("/classify")
     fun classifyImage(
-        @Query("graph") imageBase64: String
+        @Part graph: MultipartBody.Part
     ): Call<BboxResponse>
 }

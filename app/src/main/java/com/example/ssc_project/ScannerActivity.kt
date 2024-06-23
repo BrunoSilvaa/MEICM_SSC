@@ -2,6 +2,7 @@ package com.example.ssc_project
 
 import BboxResponse
 import LocalApiService
+import RetrofitClient
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
@@ -21,13 +22,15 @@ import android.util.Log
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
-import android.widget.ImageView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -131,9 +134,14 @@ class ScannerActivity : AppCompatActivity() {
         // Rotate the bitmap to correct orientation
         val rotatedBitmap = rotateBitmap(bitmap, 90f)
 
+        // Save the rotated bitmap to a file
+        val imageFile = bitmapToFile(rotatedBitmap, "captured_image.jpg")
+
         saveImageToExternalStorage(rotatedBitmap)
 
-        classifyImageWithLocalApi(rotatedBitmap)
+        // Pass the file to classifyImageWithLocalApi
+        classifyImageWithLocalApi(imageFile)
+
         // Navigate to ScanHistoryActivity
         val intent = Intent(this, ScanHistoryActivity::class.java)
         startActivity(intent)
@@ -144,6 +152,7 @@ class ScannerActivity : AppCompatActivity() {
         matrix.postRotate(angle)
         return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
     }
+
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun saveImageToExternalStorage(bitmap: Bitmap) {
@@ -209,7 +218,8 @@ class ScannerActivity : AppCompatActivity() {
             if (selectedImageUri != null) {
                 val bitmap = getBitmapFromUri(selectedImageUri)
                 if (bitmap != null) {
-                    saveAnnotatedImageToExternalStorage(bitmap)
+                    val imageFile = bitmapToFile(bitmap, "temp_image.jpg")
+                    classifyImageWithLocalApi(imageFile)
                     // Navigate to ScanHistoryActivity
                     val intent = Intent(this, ScanHistoryActivity::class.java)
                     startActivity(intent)
@@ -232,12 +242,29 @@ class ScannerActivity : AppCompatActivity() {
         const val REQUEST_PERMISSIONS = 1
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    private fun convertImageToBase64(bitmap: Bitmap): String {
-        val byteArrayOutputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream)
-        val byteArray = byteArrayOutputStream.toByteArray()
-        return Base64.getEncoder().encodeToString(byteArray)
+    fun bitmapToFile(bitmap: Bitmap, fileNameToSave: String): File {
+        // Create a file to write bitmap data
+        val file = File(getExternalFilesDir(null)?.absolutePath, fileNameToSave)
+        file.createNewFile()
+
+        // Convert bitmap to byte array
+        val bos = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, bos)
+        val bitmapData = bos.toByteArray()
+
+        // Write the bytes in file
+        var fos: FileOutputStream? = null
+        try {
+            fos = FileOutputStream(file)
+            fos.write(bitmapData)
+            fos.flush()
+        } catch (e: IOException) {
+            e.printStackTrace()
+        } finally {
+            fos?.close()
+        }
+
+        return file
     }
 
     private fun drawBoundingBoxes(bitmap: Bitmap, bboxList: List<List<Float>>): Bitmap {
@@ -261,17 +288,23 @@ class ScannerActivity : AppCompatActivity() {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    private fun classifyImageWithLocalApi(bitmap: Bitmap) {
+    private fun classifyImageWithLocalApi(imageFile: File) {
         val apiService = RetrofitClient.instance.create(LocalApiService::class.java)
-        val imageBase64 = convertImageToBase64(bitmap)
 
-        val call = apiService.classifyImage(imageBase64)
+        // Create a request body with file and image media type
+        val reqFile = RequestBody.create("image/*".toMediaTypeOrNull(), imageFile)
+
+        // MultipartBody.Part is used to send also the actual file name
+        val body = MultipartBody.Part.createFormData("graph", imageFile.name, reqFile)
+
+        val call = apiService.classifyImage(body)
         call.enqueue(object : Callback<BboxResponse> {
             override fun onResponse(call: Call<BboxResponse>, response: Response<BboxResponse>) {
                 if (response.isSuccessful) {
                     val bboxResponse = response.body()
                     bboxResponse?.bbox_predictions?.let {
                         Log.d("BboxResponse", it.toString())
+                        val bitmap = BitmapFactory.decodeFile(imageFile.absolutePath)
                         val annotatedBitmap = drawBoundingBoxes(bitmap, it)
                         saveAnnotatedImageToExternalStorage(annotatedBitmap)
                     }
@@ -285,6 +318,7 @@ class ScannerActivity : AppCompatActivity() {
             }
         })
     }
+
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun saveAnnotatedImageToExternalStorage(bitmap: Bitmap) {
