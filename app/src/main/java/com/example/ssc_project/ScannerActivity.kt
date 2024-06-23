@@ -1,6 +1,5 @@
 package com.example.ssc_project
 
-import BboxResponse
 import LocalApiService
 import RetrofitClient
 import android.Manifest
@@ -31,6 +30,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -39,8 +39,12 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
+import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Base64
+import java.util.Date
+import java.util.Locale
+
 
 class ScannerActivity : AppCompatActivity() {
 
@@ -298,26 +302,47 @@ class ScannerActivity : AppCompatActivity() {
         val body = MultipartBody.Part.createFormData("graph", imageFile.name, reqFile)
 
         val call = apiService.classifyImage(body)
-        call.enqueue(object : Callback<BboxResponse> {
-            override fun onResponse(call: Call<BboxResponse>, response: Response<BboxResponse>) {
+        call.enqueue(object : Callback<ResponseBody> {
+            override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
                 if (response.isSuccessful) {
-                    val bboxResponse = response.body()
-                    bboxResponse?.bbox_predictions?.let {
-                        Log.d("BboxResponse", it.toString())
-                        val bitmap = BitmapFactory.decodeFile(imageFile.absolutePath)
-                        val annotatedBitmap = drawBoundingBoxes(bitmap, it)
-                        saveAnnotatedImageToExternalStorage(annotatedBitmap)
+                    val base64String = response.body()?.string()
+                    Log.d("Base64Image", base64String ?: "Empty response")
+                    if (!base64String.isNullOrEmpty()) {
+                        // Decode Base64 string to bitmap
+                        print(base64String)
+                        val base64Image = base64String.replace("\"", "");
+
+                        val decodedBitmap = decodeBase64ToBitmap(base64Image)
+                        // Save or display the bitmap as needed
+                        if (decodedBitmap != null) {
+                            saveImageToExternalStorage(decodedBitmap)
+                        }
+                    } else {
+                        Log.e("BboxResponse", "Empty or null base64 image received")
                     }
                 } else {
-                    Log.e("BboxResponse", "Response not successful")
+                    Log.e("BboxResponse", "Response not successful: ${response.code()}")
                 }
             }
 
-            override fun onFailure(call: Call<BboxResponse>, t: Throwable) {
+            override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
                 Log.e("BboxResponse", "Request failed", t)
             }
         })
     }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun decodeBase64ToBitmap(base64Str: String): Bitmap? {
+        try {
+            val imageBytes = Base64.getMimeDecoder().decode(base64Str)
+            return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+        } catch (e: IllegalArgumentException) {
+            Log.e("Base64Decode", "Error decoding Base64: ${e.message}")
+            return null
+        }
+    }
+
+
 
 
     @RequiresApi(Build.VERSION_CODES.O)
