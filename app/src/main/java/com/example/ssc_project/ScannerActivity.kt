@@ -1,24 +1,37 @@
 package com.example.ssc_project
 
+import BboxResponse
+import LocalApiService
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.hardware.Camera
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -32,6 +45,7 @@ class ScannerActivity : AppCompatActivity() {
     private var mCamera: Camera? = null
     private val REQUEST_IMAGE_PICK = 1
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_scanner)
@@ -109,6 +123,7 @@ class ScannerActivity : AppCompatActivity() {
         mCamera?.setDisplayOrientation(result)
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private val pictureCallback = Camera.PictureCallback { data, _ ->
         // Handle the captured image data
         val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
@@ -117,6 +132,8 @@ class ScannerActivity : AppCompatActivity() {
         val rotatedBitmap = rotateBitmap(bitmap, 90f)
 
         saveImageToExternalStorage(rotatedBitmap)
+
+        classifyImageWithLocalApi(rotatedBitmap)
         // Navigate to ScanHistoryActivity
         val intent = Intent(this, ScanHistoryActivity::class.java)
         startActivity(intent)
@@ -128,6 +145,7 @@ class ScannerActivity : AppCompatActivity() {
         return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun saveImageToExternalStorage(bitmap: Bitmap) {
         val albumName = "Graph_Analyser"
         val storageDir = File(
@@ -152,6 +170,7 @@ class ScannerActivity : AppCompatActivity() {
                 fos.flush()
             }
             Toast.makeText(this, "Image saved: ${imageFile.absolutePath}", Toast.LENGTH_LONG).show()
+            //classifyImageWithLocalApi(bitmap)
         } catch (e: IOException) {
             e.printStackTrace()
             Toast.makeText(this, "Failed to save image", Toast.LENGTH_SHORT).show()
@@ -182,6 +201,7 @@ class ScannerActivity : AppCompatActivity() {
         startActivityForResult(intent, REQUEST_IMAGE_PICK)
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_IMAGE_PICK && resultCode == Activity.RESULT_OK) {
@@ -189,7 +209,7 @@ class ScannerActivity : AppCompatActivity() {
             if (selectedImageUri != null) {
                 val bitmap = getBitmapFromUri(selectedImageUri)
                 if (bitmap != null) {
-                    saveImageToExternalStorage(bitmap)
+                    saveAnnotatedImageToExternalStorage(bitmap)
                     // Navigate to ScanHistoryActivity
                     val intent = Intent(this, ScanHistoryActivity::class.java)
                     startActivity(intent)
@@ -211,4 +231,91 @@ class ScannerActivity : AppCompatActivity() {
     companion object {
         const val REQUEST_PERMISSIONS = 1
     }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun convertImageToBase64(bitmap: Bitmap): String {
+        val byteArrayOutputStream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream)
+        val byteArray = byteArrayOutputStream.toByteArray()
+        return Base64.getEncoder().encodeToString(byteArray)
+    }
+
+    private fun drawBoundingBoxes(bitmap: Bitmap, bboxList: List<List<Float>>): Bitmap {
+        val resultBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        val canvas = Canvas(resultBitmap)
+        val paint = Paint().apply {
+            color = Color.RED
+            style = Paint.Style.STROKE
+            strokeWidth = 5f
+        }
+
+        for (bbox in bboxList) {
+            val left = bbox[0] * resultBitmap.width
+            val top = bbox[1] * resultBitmap.height
+            val right = left + (bbox[2] * resultBitmap.width)
+            val bottom = top + (bbox[3] * resultBitmap.height)
+            canvas.drawRect(left, top, right, bottom, paint)
+        }
+
+        return resultBitmap
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun classifyImageWithLocalApi(bitmap: Bitmap) {
+        val apiService = RetrofitClient.instance.create(LocalApiService::class.java)
+        val imageBase64 = convertImageToBase64(bitmap)
+
+        val call = apiService.classifyImage(imageBase64)
+        call.enqueue(object : Callback<BboxResponse> {
+            override fun onResponse(call: Call<BboxResponse>, response: Response<BboxResponse>) {
+                if (response.isSuccessful) {
+                    val bboxResponse = response.body()
+                    bboxResponse?.bbox_predictions?.let {
+                        Log.d("BboxResponse", it.toString())
+                        val annotatedBitmap = drawBoundingBoxes(bitmap, it)
+                        saveAnnotatedImageToExternalStorage(annotatedBitmap)
+                    }
+                } else {
+                    Log.e("BboxResponse", "Response not successful")
+                }
+            }
+
+            override fun onFailure(call: Call<BboxResponse>, t: Throwable) {
+                Log.e("BboxResponse", "Request failed", t)
+            }
+        })
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun saveAnnotatedImageToExternalStorage(bitmap: Bitmap) {
+        val albumName = "Graph_Analyser"
+        val storageDir = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+            albumName
+        )
+
+        if (!storageDir.exists()) {
+            if (!storageDir.mkdirs()) {
+                Toast.makeText(this, "Failed to create directory", Toast.LENGTH_SHORT).show()
+                return
+            }
+        }
+
+        val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val imageFileName = "ANNOTATED_IMG_$timeStamp.jpg"
+        val imageFile = File(storageDir, imageFileName)
+
+        try {
+            FileOutputStream(imageFile).use { fos ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
+                fos.flush()
+            }
+            Toast.makeText(this, "Annotated image saved: ${imageFile.absolutePath}", Toast.LENGTH_LONG).show()
+            //classifyImageWithLocalApi(bitmap)
+        } catch (e: IOException) {
+            e.printStackTrace()
+            Toast.makeText(this, "Failed to save annotated image", Toast.LENGTH_SHORT).show()
+        }
+    }
+
 }
