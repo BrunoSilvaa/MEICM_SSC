@@ -5,7 +5,7 @@
 ### Prerequisites
 
 - Python 3.x installed
-- Required dependencies installed (`requirements.txt`)
+- Android Studio installed
 
 ### Configuration
 
